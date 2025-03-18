@@ -1,23 +1,19 @@
 {
   "name": "ai-restaurant-review-generator",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "preview": "nuxt preview"
-  },
-  "dependencies": {
-    "@nuxt/ui": "^2.14.1",
-    "nuxt": "^3.10.3",
-    "openai": "^4.28.0",
-    "vue": "^3.4.19",
-    "vue-router": "^4.3.0"
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
   },
   "devDependencies": {
-    "@nuxtjs/tailwindcss": "^6.11.4",
-    "@types/node": "^20.11.20",
-    "typescript": "^5.3.3"
+    "@nuxtjs/tailwindcss": "^6.8.0",
+    "nuxt": "^3.7.0"
+  },
+  "dependencies": {
+    "@pinia/nuxt": "^0.4.11",
+    "openai": "^3.3.0"
   }
 }
