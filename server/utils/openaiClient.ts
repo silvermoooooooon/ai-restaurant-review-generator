@@ -32,8 +32,27 @@ interface ChatCompletionResponse {
  */
 export function createOpenAIClient(config: any) {
   // 获取必要配置
-  const apiKey = config.openaiApiKey
+  let apiKey = config.openaiApiKey
   let baseURL = config.openaiBaseUrl
+
+  // 调试信息
+  console.log("配置对象:", JSON.stringify({
+    configExists: !!config,
+    configKeys: Object.keys(config || {}),
+    envApiKey: process.env.OPENAI_API_KEY ? "已设置" : "未设置",
+    envBaseUrl: process.env.OPENAI_BASE_URL || "未设置"
+  }))
+
+  // 尝试直接从环境变量获取
+  if (!apiKey && process.env.OPENAI_API_KEY) {
+    console.log("从环境变量直接读取API密钥")
+    apiKey = process.env.OPENAI_API_KEY
+  }
+
+  if (!baseURL && process.env.OPENAI_BASE_URL) {
+    console.log("从环境变量直接读取API基础URL")
+    baseURL = process.env.OPENAI_BASE_URL
+  }
 
   // 验证API密钥
   if (!apiKey) {
@@ -71,10 +90,38 @@ export function createOpenAIClient(config: any) {
  * 发送聊天完成请求 - 直接使用fetch，避免OpenAI库处理响应造成的问题
  */
 export async function createChatCompletion(config: any, messages: any[], options: any = {}) {
+  // 调试信息
+  console.log("聊天完成配置:", JSON.stringify({
+    configExists: !!config,
+    configKeys: Object.keys(config || {}),
+    apiKey: config.openaiApiKey ? "已设置" : "未设置",
+    baseUrl: config.openaiBaseUrl || "未设置",
+    model: config.openaiModel || "未设置",
+    envApiKey: process.env.OPENAI_API_KEY ? "已设置" : "未设置",
+    envBaseUrl: process.env.OPENAI_BASE_URL || "未设置",
+    envModel: process.env.OPENAI_MODEL || "未设置"
+  }))
+
   // 获取必要配置
-  const apiKey = config.openaiApiKey
+  let apiKey = config.openaiApiKey
   let baseURL = config.openaiBaseUrl
-  const model = config.openaiModel
+  let model = config.openaiModel
+  
+  // 尝试直接从环境变量获取
+  if (!apiKey && process.env.OPENAI_API_KEY) {
+    console.log("从环境变量直接读取API密钥")
+    apiKey = process.env.OPENAI_API_KEY
+  }
+
+  if (!baseURL && process.env.OPENAI_BASE_URL) {
+    console.log("从环境变量直接读取API基础URL")
+    baseURL = process.env.OPENAI_BASE_URL
+  }
+
+  if (!model && process.env.OPENAI_MODEL) {
+    console.log("从环境变量直接读取模型名称")
+    model = process.env.OPENAI_MODEL
+  }
   
   // 验证配置
   if (!apiKey) {
@@ -86,7 +133,8 @@ export async function createChatCompletion(config: any, messages: any[], options
   }
   
   if (!model) {
-    throw new Error('未设置OpenAI模型名称，请在.env文件中设置OPENAI_MODEL')
+    console.log("未设置模型名称，使用默认值gpt-3.5-turbo")
+    model = "gpt-3.5-turbo"
   }
   
   // 处理baseURL
@@ -103,7 +151,7 @@ export async function createChatCompletion(config: any, messages: any[], options
   // 添加端点
   url = `${url}/chat/completions`
   
-  console.log(`直接fetch请求API: ${url}`)
+  console.log(`直接fetch请求API: ${url}，使用模型: ${model}`)
   
   // 计算超时
   let timeout: number | undefined
