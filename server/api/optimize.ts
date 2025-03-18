@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const response = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
