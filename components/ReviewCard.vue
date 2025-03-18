@@ -42,13 +42,38 @@ const copied = ref(false)
 
 const handleCopy = async () => {
   try {
-    await navigator.clipboard.writeText(props.content)
+    // 尝试使用现代Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(props.content)
+    } else {
+      // 后备方案：使用传统方法
+      const textarea = document.createElement('textarea')
+      textarea.value = props.content
+      textarea.style.position = 'fixed'  // 避免滚动到底部
+      textarea.style.opacity = '0'
+      textarea.style.pointerEvents = 'none'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      
+      // 执行复制命令
+      const successful = document.execCommand('copy')
+      if (!successful) {
+        throw new Error('复制命令失败')
+      }
+      
+      // 清理
+      document.body.removeChild(textarea)
+    }
+    
+    // 显示成功状态
     copied.value = true
     setTimeout(() => {
       copied.value = false
     }, 2000)
   } catch (error) {
     console.error('复制失败:', error)
+    alert('复制失败，请手动复制文本')
   }
 }
 </script>
