@@ -188,15 +188,51 @@ npm install
 ```
 
 2. 配置环境变量：
-在 `.env` 文件中设置 OpenAI API Key：
+在项目根目录创建 `.env` 文件或运行设置向导：
+```bash
+npm run setup
 ```
+
+在 `.env` 文件中配置以下内容：
+```
+# OpenAI API密钥
 OPENAI_API_KEY=your_api_key_here
+
+# API基础URL（使用第三方API时配置）
+# 注意：不要在URL末尾添加/v1，系统会自动处理
+OPENAI_BASE_URL=http://3.95.6.48:3000
+
+# 使用的模型名称
+OPENAI_MODEL=gpt-4o-mini
+
+# API超时设置（毫秒）
+OPENAI_TIMEOUT=30000
 ```
 
 3. 启动开发服务器：
 ```bash
 npm run dev
 ```
+
+4. 调试API连接（可选）：
+```bash
+npm run debug:api
+```
+
+## API 配置说明
+
+### 关于第三方API配置
+- 本项目支持使用官方OpenAI API或第三方兼容的API服务
+- 使用第三方API时，需要在 `.env` 文件中设置 `OPENAI_BASE_URL`
+- 示例：`OPENAI_BASE_URL=http://3.95.6.48:3000`
+- 重要：不要在URL末尾添加 `/v1`，系统会自动处理
+- 系统使用 OpenAI 官方 JavaScript 库进行API调用
+
+### 环境变量详解
+- `OPENAI_API_KEY`：API密钥（必填）
+- `OPENAI_BASE_URL`：API基础URL，不含 `/v1` 路径
+- `OPENAI_MODEL`：使用的模型名称，默认为 `gpt-4o-mini`
+- `OPENAI_TIMEOUT`：API请求超时时间（毫秒）
 
 ## 后续优化方向
 1. 支持多语言评论生成

@@ -1,127 +1,155 @@
-import { Configuration, OpenAIApi } from 'openai'
+import { createChatCompletion } from '../utils/openaiClient'
+import { H3Event, createError } from 'h3'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig()
-  const openai = new OpenAIApi(new Configuration({
-    apiKey: config.openaiApiKey
-  }))
+  
+  // 记录配置信息
+  console.log(`使用API基础URL: ${config.openaiBaseUrl}`)
+  console.log(`使用模型: ${config.openaiModel}`)
+  
+  // 获取请求参数 - 支持GET
+  const query = getQuery(event);
+  const content = query.content as string || '';
+  const count = parseInt(query.count as string || '1');
+  
+  // 验证参数
+  if (!content) {
+    throw createError({
+      statusCode: 400,
+      message: '缺少content参数'
+    });
+  }
 
-  const body = await readBody(event)
-  const { content, count } = body
-
-  // 用户角色列表
-  const userRoles = [
-    '美食博主', '普通上班族', '年轻情侣', '家庭主妇', '资深吃货', 
-    '外地旅客', '商务人士', '学生党', '退休老人', '附近居民'
-  ]
+  // 设置响应头，使用流式响应
+  setResponseHeaders(event, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  })
   
-  // 就餐场景列表
-  const diningScenes = [
-    '朋友聚会', '商务宴请', '家庭聚餐', '情侣约会', '独自用餐',
-    '生日庆祝', '周末休闲', '匆忙午餐', '深夜宵夜', '庆祝纪念日'
-  ]
-  
-  // 评论风格列表 - 更偏向口语化的风格
-  const reviewStyles = [
-    '随意口语', '简短直接', '碎碎念风', '夸张活泼', '接地气吐槽',
-    '日常闲聊', '朋友推荐', '真实记录', '个人体验', '俏皮幽默'
-  ]
-  
-  // 添加真实用户常用表达方式
-  const casualExpressions = [
-    '真的超级赞👍', '老板人超好', '朋友强烈推荐的', '路过偶然发现',
-    '性价比挺高', '下次还会再来', '服务态度不错', '味道一级棒',
-    '环境还可以', '排队等了好久', '人均不算贵', '菜量挺足的'
-  ]
-  
-  // 添加常见口头禅和语气词
-  const fillerWords = [
-    '反正', '就是', '感觉', '说实话', '老实讲', '不得不说',
-    'emmm', '说真的', '讲道理', '哇塞', '反正就是', '不过'
-  ]
-  
-  // 添加常见的结尾词
-  const endingPhrases = [
-    '推荐打卡~', '强烈安利！', '下次还会再来！', '值得一试！',
-    '绝对不踩雷！', '不枉此行！', '回头客没跑了！', '强推！'
-  ]
+  // 用户角色、场景和表达方式列表
+  const userRoles = ['美食博主', '普通上班族', '年轻情侣', '家庭主妇', '资深吃货', '外地旅客', '商务人士', '学生党', '退休老人', '附近居民']
+  const diningScenes = ['朋友聚会', '商务宴请', '家庭聚餐', '情侣约会', '独自用餐', '生日庆祝', '周末休闲', '匆忙午餐', '深夜宵夜', '庆祝纪念日']
+  const reviewStyles = ['随意口语', '简短直接', '碎碎念风', '夸张活泼', '接地气吐槽', '日常闲聊', '朋友推荐', '真实记录', '个人体验', '俏皮幽默']
+  const casualExpressions = ['真的超级赞👍', '老板人超好', '朋友强烈推荐的', '路过偶然发现', '性价比挺高', '下次还会再来', '服务态度不错', '味道一级棒']
+  const fillerWords = ['反正', '就是', '感觉', '说实话', '老实讲', '不得不说', 'emmm', '说真的', '讲道理', '哇塞']
+  const endingPhrases = ['推荐打卡~', '强烈安利！', '下次还会再来！', '值得一试！', '绝对不踩雷！', '不枉此行！', '回头客没跑了！', '强推！']
 
   try {
-    const reviews = []
-    for (let i = 0; i < count; i++) {
-      // 随机选择用户角色、场景、风格
-      const role = userRoles[Math.floor(Math.random() * userRoles.length)]
-      const scene = diningScenes[Math.floor(Math.random() * diningScenes.length)]
-      const style = reviewStyles[Math.floor(Math.random() * reviewStyles.length)]
+    const reviewsToGenerate = Math.min(count || 1, 5) // 最多生成5条评论
+    console.log(`请求生成 ${reviewsToGenerate} 条评论`)
+    
+    // 发送总数信息
+    event.node.res.write(`data: ${JSON.stringify({ type: 'total', total: reviewsToGenerate })}\n\n`)
+    
+    // 尝试次数
+    let attempts = 0
+    const maxAttempts = reviewsToGenerate * 2 // 允许最多两倍的尝试次数
+    let generated = 0
+
+    // 使用循环直到生成足够数量的评论或达到最大尝试次数
+    while (generated < reviewsToGenerate && attempts < maxAttempts) {
+      attempts++
+      console.log(`第 ${attempts} 次尝试，当前已生成 ${generated} 条评论`)
       
-      // 随机选择1-2个常用表达
-      const numExpressions = Math.floor(Math.random() * 2) + 1
-      const selectedExpressions: string[] = []
-      for (let j = 0; j < numExpressions; j++) {
-        const expression = casualExpressions[Math.floor(Math.random() * casualExpressions.length)]
-        if (!selectedExpressions.includes(expression)) {
-          selectedExpressions.push(expression)
-        }
-      }
+      // 构建评论生成提示词
+      const userRole = userRoles[Math.floor(Math.random() * userRoles.length)]
+      const diningScene = diningScenes[Math.floor(Math.random() * diningScenes.length)]
+      const reviewStyle = reviewStyles[Math.floor(Math.random() * reviewStyles.length)]
+      const casualExpression = casualExpressions[Math.floor(Math.random() * casualExpressions.length)]
+      const fillerWord = fillerWords[Math.floor(Math.random() * fillerWords.length)]
+      const endingPhrase = endingPhrases[Math.floor(Math.random() * endingPhrases.length)]
       
-      // 随机选择1-2个口头禅
-      const numFillers = Math.floor(Math.random() * 2) + 1
-      const selectedFillers: string[] = []
-      for (let j = 0; j < numFillers; j++) {
-        const filler = fillerWords[Math.floor(Math.random() * fillerWords.length)]
-        if (!selectedFillers.includes(filler)) {
-          selectedFillers.push(filler)
-        }
-      }
+      // 构建提示词
+      const prompt = `作为一个${userRole}，写一篇关于餐厅"${content}"的点评。
+      场景是${diningScene}。
+      风格要${reviewStyle}，使用口语化表达，比如"${casualExpression}"和"${fillerWord}"等，
+      并以"${endingPhrase}"之类的句式结尾。
+      字数控制在100-150字之间。`
       
-      // 随机选择结尾短语
-      const ending = endingPhrases[Math.floor(Math.random() * endingPhrases.length)]
-      
-      const systemPrompt = `你需要生成一条真实的餐厅点评，听起来像真人写的，不要太书面化或文艺腔。
-
-请以"${role}"的身份，描述在"${scene}"场景下的用餐体验，但要用"${style}"的风格写，让评论听起来像是社交媒体上普通人随手发的。
-
-评论中必须包含这些口语化表达：${selectedExpressions.join('、')}
-也要用上这些语气词或口头禅：${selectedFillers.join('、')}
-可以用这个结尾：${ending}
-
-要求：
-1. 使用简短句子，避免过于华丽的词藻和复杂的修辞
-2. 加入一些语法不完全严谨的表达，模仿口语化交流
-3. 保持语言随意性，像朋友间的闲聊
-4. 可以适当使用emoji表情、网络用语
-5. 不要使用"感官盛宴"、"美丽画卷"这类文艺化表达
-6. 避免过于结构化的评论，要有真实感
-7. 总字数控制在60-100字左右
-
-记住：要让人一看就觉得是普通消费者写的，而不是专业文案`
-
-      const response = await openai.createChatCompletion({
-        model: 'gpt-4o-mini',
-        messages: [
+      try {
+        // 使用OpenAI客户端发送请求
+        console.log(`尝试生成评论 (${attempts}/${maxAttempts})`)
+        
+        const messages = [
           {
             role: 'system',
-            content: systemPrompt
+            content: '你是一个专业的餐厅点评生成助手，擅长模仿真实用户的口语化表达。'
           },
           {
             role: 'user',
-            content
+            content: prompt
           }
-        ],
-        temperature: 0.8 + Math.random() * 0.2 // 增加随机性，范围0.8-1.0
-      })
-
-      const reviewContent = response.data.choices[0]?.message?.content
-      if (reviewContent) {
-        reviews.push(reviewContent)
+        ]
+        
+        const response = await createChatCompletion(config, messages)
+        
+        // 安全地提取响应内容
+        let reviewContent = ''
+        
+        if (response.choices && response.choices.length > 0) {
+          // 使用any类型处理可能的不同响应格式
+          const firstChoice = response.choices[0] as any
+          
+          // 检查标准OpenAI格式
+          if (firstChoice.message && firstChoice.message.content) {
+            reviewContent = firstChoice.message.content
+          } 
+          // 检查其他可能的格式
+          else if (firstChoice.text) {
+            reviewContent = firstChoice.text
+          }
+          else {
+            console.error('未找到有效的响应内容，响应格式:', JSON.stringify(response.choices[0]))
+          }
+        } else {
+          console.error('API响应中没有choices数组或为空')
+        }
+        
+        if (reviewContent) {
+          generated++
+          console.log(`成功生成一条评论，当前总数: ${generated}`)
+          
+          // 构建评论对象
+          const review = {
+            id: `review-${Date.now()}-${generated}`,
+            content: reviewContent
+          }
+          
+          // 发送评论到客户端
+          event.node.res.write(`data: ${JSON.stringify({ type: 'review', review })}\n\n`)
+          
+          // 短暂延迟，让前端有时间处理
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } else {
+          console.error('评论内容为空')
+        }
+      } catch (apiError: any) {
+        // 记录API错误但继续生成其他评论
+        console.error(`生成评论时出错(尝试 ${attempts}/${maxAttempts}): ${apiError.message}`)
+        continue
       }
     }
 
-    return { reviews }
+    console.log(`最终生成了 ${generated} 条评论，请求的数量为 ${reviewsToGenerate}`)
+    
+    // 发送完成事件
+    event.node.res.write(`data: ${JSON.stringify({ type: 'completed', generated })}\n\n`)
+    event.node.res.end()
+    
+    // 如果一条评论都没有生成成功，返回错误
+    if (generated === 0) {
+      event.node.res.write(`data: ${JSON.stringify({ type: 'error', message: '所有评论生成均失败' })}\n\n`)
+      event.node.res.end()
+    }
+    
+    return
   } catch (error) {
-    throw createError({
-      statusCode: 500,
-      message: '生成失败'
-    })
+    console.error('生成失败:', error)
+    // 发送错误事件
+    event.node.res.write(`data: ${JSON.stringify({ type: 'error', message: '生成失败' })}\n\n`)
+    event.node.res.end()
+    return
   }
 })

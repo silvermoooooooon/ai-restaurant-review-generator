@@ -111,34 +111,57 @@ const handleGenerate = async ({ content, count }: { content: string; count: numb
     progress.total = count
     progress.current = 0
     
-    const response = await $fetch<{ reviews: string[] }>('/api/generate', {
-      method: 'POST',
-      body: { content, count }
-    })
+    // 创建事件源连接
+    const eventSourceUrl = `/api/generate?content=${encodeURIComponent(content)}&count=${count}`
+    const eventSource = new EventSource(eventSourceUrl)
     
-    if (response && response.reviews) {
-      // 模拟逐条生成效果
-      const addReviewsProgressively = () => {
-        const interval = setInterval(() => {
-          if (progress.current < response.reviews.length) {
-            reviews.value.push({
-              id: `review-${Date.now()}-${progress.current}`,
-              content: response.reviews[progress.current]
-            })
+    // 处理消息事件
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        
+        switch (data.type) {
+          case 'total':
+            // 更新总数
+            progress.total = data.total
+            break
+            
+          case 'review':
+            // 添加新评论
+            reviews.value.push(data.review)
             progress.current++
-          } else {
-            clearInterval(interval)
+            break
+            
+          case 'completed':
+            // 处理完成
             progress.status = 'completed'
+            eventSource.close()
             setTimeout(() => {
               inputSection.value?.resetProcessing()
             }, 2000)
-          }
-        }, 300) // 每300毫秒添加一条评论
+            break
+            
+          case 'error':
+            // 处理错误
+            console.error('生成错误:', data.message)
+            progress.status = 'error'
+            eventSource.close()
+            setTimeout(() => {
+              resetProgress()
+              inputSection.value?.resetProcessing()
+            }, 2000)
+            break
+        }
+      } catch (e) {
+        console.error('解析事件数据失败:', e)
       }
-      
-      addReviewsProgressively()
-    } else {
+    }
+    
+    // 处理错误
+    eventSource.onerror = (error) => {
+      console.error('EventSource错误:', error)
       progress.status = 'error'
+      eventSource.close()
       setTimeout(() => {
         resetProgress()
         inputSection.value?.resetProcessing()
