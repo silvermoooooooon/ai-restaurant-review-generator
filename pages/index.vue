@@ -20,11 +20,9 @@
     <div class="container mx-auto px-4 relative z-10">
       <header class="mb-12 text-center">
         <h1 class="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-          AI 餐厅点评生成器
+          丝路驼铃·西域食府
         </h1>
-        <p class="text-gray-300 max-w-2xl mx-auto">
-          基于先进的AI技术，轻松生成真实、自然的餐厅点评内容
-        </p>
+        
       </header>
       
       <div class="max-w-5xl mx-auto">
