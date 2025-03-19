@@ -64,21 +64,37 @@ export default defineEventHandler(async (event: H3Event) => {
       const fillerWord = fillerWords[Math.floor(Math.random() * fillerWords.length)]
       const endingPhrase = endingPhrases[Math.floor(Math.random() * endingPhrases.length)]
       
+      // 随机决定是否包含负面评价
+      const includeNegative = Math.random() > 0.7 // 30%几率包含负面评价
+      const sentimentInstruction = includeNegative 
+        ? "写1-2个具体菜品的真实感受，大部分是喜欢的，但也可以提一点小缺点，如等位时间长、某道菜略咸、价格稍贵等小问题。" 
+        : "写1-2个具体菜品的真实感受，表达你的喜欢，不要提负面评价。"
+      
       // 构建提示词
-      const prompt = `作为一个${userRole}，写一篇关于餐厅"${restaurantDescription}"的点评。
+      const prompt = `作为${userRole}，写一条关于餐厅"${restaurantDescription}"的真实点评。
       场景是${diningScene}。
-      风格要${reviewStyle}，使用口语化表达，比如"${casualExpression}"和"${fillerWord}"等，
-      并以"${endingPhrase}"之类的句式结尾。
-      字数控制在100-150字之间。`
+      用口语化、日常生活中的表达方式，不要用书面语，不要用"伴侣"这样的词，用"对象"、"男/女朋友"、"老公/老婆"等更日常的词语。
+      风格是${reviewStyle}，语气要自然随意，像朋友圈日常吐槽，包含真实情绪和主观感受。
+      可以用"${casualExpression}"和"${fillerWord}"等口头禅。
+      ${sentimentInstruction}
+      用自然的标点，可以省略标点，或者用感叹号、省略号等表达情绪，不要太规范。
+      避免不自然的表达，如"打动了我的味蕾"、"舌尖上的享受"、"唇齿留香"等文艺或广告用语，用"好吃"、"真香"、"超赞"等日常表达。
+      避免使用太夸张的感叹词，如"呀"、"哇"、"啊"等，保持情绪表达克制真实。
+      随机添加1-2个常见的错别字或用词不当，例如把"环境"打成"环竟"、"味道"打成"味到"、"特别"打成"特变"、用"在"代替"再"等。
+      绝对不要用markdown格式（如**加粗**）。
+      最后以"${endingPhrase}"之类的方式结尾，但要自然口语化。
+      控制在100-150字。`
       
       try {
         // 使用OpenAI客户端发送请求
-        console.log(`尝试生成评论 (${attempts}/${maxAttempts})`)
+        console.log(`尝试生成评论 (${attempts}/${maxAttempts})，包含负面评价: ${includeNegative}`)
         
         const messages = [
           {
             role: 'system',
-            content: '你是一个专业的餐厅点评生成助手，擅长模仿真实用户的口语化表达。'
+            content: '你是一个真实餐厅点评生成助手，完全模拟普通人的说话方式。使用大量口语词汇，避免书面语和规范标点。添加1-2个常见错别字以增加真实感。情绪表达要克制，避免夸张感叹。评论应该包含真实情感，' + 
+            (includeNegative ? '有喜欢的也有不满意的小细节，但总体评价是正面的。' : '以正面情绪为主，不包含负面评价。') + 
+            '像普通人朋友圈分享一样。绝对不使用markdown格式，保持原生文本。'
           },
           {
             role: 'user',
