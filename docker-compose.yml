@@ -11,6 +11,9 @@ services:
       - OPENAI_API_KEY=sk-your-actual-api-key-here
       - OPENAI_BASE_URL=https://api.openai.com/v1
       - OPENAI_MODEL=gpt-3.5-turbo
+      - RESTAURANT_DESCRIPTION_PATH=/app/config/restaurant.txt
+    volumes:
+      - ./config:/app/config
     # env_file:
     #  - .env
     restart: unless-stopped

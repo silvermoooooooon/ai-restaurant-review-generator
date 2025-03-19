@@ -13,12 +13,16 @@ RUN npm install
 # 复制项目文件
 COPY . .
 
+# 确保配置目录存在
+RUN mkdir -p /app/config
+
 # 设置环境变量
 ENV NUXT_HOST=0.0.0.0
 ENV NUXT_PORT=3000
 ENV OPENAI_API_KEY=sk-your-api-key-here
 ENV OPENAI_BASE_URL=https://api.openai.com/v1
 ENV OPENAI_MODEL=gpt-3.5-turbo
+ENV RESTAURANT_DESCRIPTION_PATH=/app/config/restaurant.txt
 
 # 构建应用
 RUN npm run build

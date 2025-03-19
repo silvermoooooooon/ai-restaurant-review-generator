@@ -1,5 +1,6 @@
 import { createChatCompletion } from '../utils/openaiClient'
 import { H3Event, createError } from 'h3'
+import { getRestaurantDescription } from '../utils/restaurantConfig'
 
 export default defineEventHandler(async (event: H3Event) => {
   const config = useRuntimeConfig()
@@ -10,14 +11,16 @@ export default defineEventHandler(async (event: H3Event) => {
   
   // 获取请求参数 - 支持GET
   const query = getQuery(event);
-  const content = query.content as string || '';
   const count = parseInt(query.count as string || '1');
   
-  // 验证参数
-  if (!content) {
+  // 从配置文件读取餐厅描述
+  const restaurantDescription = getRestaurantDescription(config.restaurantDescriptionPath)
+  
+  // 验证餐厅描述
+  if (!restaurantDescription) {
     throw createError({
-      statusCode: 400,
-      message: '缺少content参数'
+      statusCode: 500,
+      message: '无法获取餐厅描述'
     });
   }
 
@@ -62,7 +65,7 @@ export default defineEventHandler(async (event: H3Event) => {
       const endingPhrase = endingPhrases[Math.floor(Math.random() * endingPhrases.length)]
       
       // 构建提示词
-      const prompt = `作为一个${userRole}，写一篇关于餐厅"${content}"的点评。
+      const prompt = `作为一个${userRole}，写一篇关于餐厅"${restaurantDescription}"的点评。
       场景是${diningScene}。
       风格要${reviewStyle}，使用口语化表达，比如"${casualExpression}"和"${fillerWord}"等，
       并以"${endingPhrase}"之类的句式结尾。

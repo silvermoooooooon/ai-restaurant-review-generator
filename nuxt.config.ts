@@ -7,7 +7,8 @@ export default defineNuxtConfig({
     openaiApiVersion: process.env.OPENAI_API_VERSION,
     openaiModel: process.env.OPENAI_MODEL,
     openaiTimeout: process.env.OPENAI_TIMEOUT,
-    debug: process.env.DEBUG === 'true'
+    debug: process.env.DEBUG === 'true',
+    restaurantDescriptionPath: process.env.RESTAURANT_DESCRIPTION_PATH || './config/restaurant.txt'
   },
   app: {
     head: {

@@ -12,6 +12,7 @@
         :key="review.id"
         :content="review.content"
         class="animate-fadeIn"
+        @regenerate="$emit('regenerate')"
       />
     </div>
   </div>
@@ -26,6 +27,8 @@ interface Review {
 defineProps<{
   reviews: Review[]
 }>()
+
+defineEmits(['regenerate'])
 </script>
 
 <style>

@@ -28,16 +28,8 @@
       </header>
       
       <div class="max-w-5xl mx-auto">
-        <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-700 p-6 mb-8">
-          <InputSection
-            ref="inputSection"
-            @optimize="handleOptimize"
-            @generate="handleGenerate"
-          />
-        </div>
-        
         <ProgressBar
-          v-if="progress.status !== 'idle'"
+          v-if="progress.status !== 'idle' && progress.status !== 'completed'"
           :current="progress.current"
           :total="progress.total"
           :status="progress.status"
@@ -47,19 +39,37 @@
         <ReviewList
           v-if="reviews.length > 0"
           :reviews="reviews"
+          @regenerate="handleRegenerate"
         />
+        
+        <div 
+          v-if="reviews.length === 0 && progress.status === 'idle'"
+          class="flex justify-center my-8"
+        >
+          <button
+            @click="handleGenerate"
+            class="px-6 py-3 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-xl overflow-hidden transition-all
+                   hover:shadow-lg hover:shadow-blue-600/20 group"
+          >
+            <span class="absolute inset-0 bg-gradient-to-br from-cyan-500 to-blue-600 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300"></span>
+            <span class="relative flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+              </svg>
+              生成评论
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import InputSection from '~/components/InputSection.vue'
+import { ref, reactive, onMounted } from 'vue'
 import ProgressBar from '~/components/ProgressBar.vue'
 import ReviewList from '~/components/ReviewList.vue'
 
-const inputSection = ref(null)
 const reviews = ref<Array<{ id: string; content: string }>>([])
 const progress = reactive({
   current: 0,
@@ -74,45 +84,16 @@ const resetProgress = () => {
   progress.status = 'idle'
 }
 
-// 处理AI优化
-const handleOptimize = async (content: string) => {
-  try {
-    progress.status = 'optimizing'
-    progress.total = 1
-    progress.current = 0
-    
-    const response = await $fetch<{ optimizedContent: string }>('/api/optimize', {
-      method: 'POST',
-      body: { content }
-    })
-    
-    if (response && response.optimizedContent) {
-      inputSection.value?.updateContent(response.optimizedContent)
-    }
-    
-    progress.current = 1
-    progress.status = 'completed'
-  } catch (error) {
-    console.error('优化失败:', error)
-    progress.status = 'error'
-  } finally {
-    setTimeout(() => {
-      resetProgress()
-      inputSection.value?.resetProcessing()
-    }, 2000)
-  }
-}
-
 // 处理评论生成
-const handleGenerate = async ({ content, count }: { content: string; count: number }) => {
+const handleGenerate = async () => {
   try {
     reviews.value = []
     progress.status = 'generating'
-    progress.total = count
+    progress.total = 1 // 默认只生成一条评论
     progress.current = 0
     
     // 创建事件源连接
-    const eventSourceUrl = `/api/generate?content=${encodeURIComponent(content)}&count=${count}`
+    const eventSourceUrl = `/api/generate?count=1`
     const eventSource = new EventSource(eventSourceUrl)
     
     // 处理消息事件
@@ -136,9 +117,6 @@ const handleGenerate = async ({ content, count }: { content: string; count: numb
             // 处理完成
             progress.status = 'completed'
             eventSource.close()
-            setTimeout(() => {
-              inputSection.value?.resetProcessing()
-            }, 2000)
             break
             
           case 'error':
@@ -148,7 +126,6 @@ const handleGenerate = async ({ content, count }: { content: string; count: numb
             eventSource.close()
             setTimeout(() => {
               resetProgress()
-              inputSection.value?.resetProcessing()
             }, 2000)
             break
         }
@@ -164,7 +141,6 @@ const handleGenerate = async ({ content, count }: { content: string; count: numb
       eventSource.close()
       setTimeout(() => {
         resetProgress()
-        inputSection.value?.resetProcessing()
       }, 2000)
     }
   } catch (error) {
@@ -172,8 +148,17 @@ const handleGenerate = async ({ content, count }: { content: string; count: numb
     progress.status = 'error'
     setTimeout(() => {
       resetProgress()
-      inputSection.value?.resetProcessing()
     }, 2000)
   }
 }
+
+// 处理重新生成
+const handleRegenerate = () => {
+  handleGenerate() // 直接调用生成函数
+}
+
+// 页面加载时自动生成评论
+onMounted(() => {
+  handleGenerate()
+})
 </script>
